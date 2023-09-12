@@ -3,6 +3,7 @@ package io.conductor.demo.kafka;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,7 +12,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
 
-public class ConsumerDemo {
+public class ConsumerDemowithShutDown {
 
         private static final Logger log= LoggerFactory.getLogger(ProducerDemo.class.getSimpleName());
         public static void main(String[] args) {
@@ -39,16 +40,42 @@ public class ConsumerDemo {
 
             //set Consumer
             KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
-            consumer.subscribe(Arrays.asList(topic));
 
-            while (true) {
-                log.info("Polling");
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+            final Thread mainThread=Thread.currentThread();
 
-                for(ConsumerRecord<String,String>record:records){
-                    log.info("key :"+record.key()+"\n"+"Value:"+record.value() );
-                    log.info("Partiton :"+record.partition()+"\n"+"Offset:"+record.offset() );
+            //adding shutdown hook
+
+            Runtime.getRuntime().addShutdownHook(new Thread(){
+                public void run(){
+                    log.info("Detected shutdown ");
+                    consumer.wakeup();
+
+                    try {
+                        mainThread.join();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-            }
+            });
+           try {
+               consumer.subscribe(Arrays.asList(topic));
+
+               while (true) {
+                   log.info("Polling");
+                   ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
+
+                   for (ConsumerRecord<String, String> record : records) {
+                       log.info("key :" + record.key() + "\n" + "Value:" + record.value());
+                       log.info("Partiton :" + record.partition() + "\n" + "Offset:" + record.offset());
+                   }
+               }
+           }catch (WakeupException e){
+               log.info("Consumer started to shutdown ");
+           }catch (Exception e){
+               log.info("Unexpected Exception");
+           }finally {
+               consumer.close();
+               log.info("Consumer is shutdown");
+           }
         }
 }

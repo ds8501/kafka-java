@@ -2,6 +2,7 @@ package io.conductor.demo.kafka;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.CooperativeStickyAssignor;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -11,7 +12,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Properties;
 
-public class ConsumerDemo {
+public class ConsumerDemoCooperative {
 
         private static final Logger log= LoggerFactory.getLogger(ProducerDemo.class.getSimpleName());
         public static void main(String[] args) {
@@ -36,6 +37,8 @@ public class ConsumerDemo {
 
             properties.setProperty("group.id", groupId);
             properties.setProperty("auto.offset.reset", "earliest");
+            properties.setProperty("partition.assignement.strategy", CooperativeStickyAssignor.class.getName());
+
 
             //set Consumer
             KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
